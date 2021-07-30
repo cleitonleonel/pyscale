@@ -1,6 +1,6 @@
 # _Pyscale_
 
-<img src="https://github.com/cleitonleonel/pyscale/blob/master/scale.ico?raw=true" alt="pyscale" width="450"/>
+<img src="https://github.com/cleitonleonel/pyscale/blob/master/scale.ico?raw=true" alt="pyscale" width="200"/>
 
 Pyscale é um projeto de fim de semana, feito para solucionar um pequeno problema com pesagem que tive.
 # Instalação e uso:
