@@ -1,0 +1,15 @@
+aenum==3.1.0
+altgraph==0.17
+dbf==0.99.1
+Pillow==8.3.1
+pyinstaller==4.4
+pyinstaller-hooks-contrib==2021.2
+pyngrok==5.0.5
+pyserial==3.5
+PySide2==5.15.2
+PySimpleGUI==4.45.0
+PySimpleGUIQt==0.35.0
+python3-xlib==0.15
+pytz==2021.1
+PyYAML==5.4.1
+shiboken2==5.15.2
