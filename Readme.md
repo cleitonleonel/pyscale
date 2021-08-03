@@ -12,7 +12,7 @@ pip3 install -r requirements.txt
 python3 pesagem.py
 ```
 
-##Demonstração:
+# Demonstração:
 
 <img src="https://github.com/cleitonleonel/pyscale/blob/master/sample.png?raw=true" alt="pyscale" width="450"/>
 
