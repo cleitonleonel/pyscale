@@ -12,6 +12,10 @@ pip3 install -r requirements.txt
 python3 pesagem.py
 ```
 
+##Demonstração:
+
+<img src="https://github.com/cleitonleonel/pyscale/blob/master/sample.png?raw=true" alt="pyscale" width="450"/>
+
 # Este projeto ajudou você?
 
 Se esse projeto lhe ajudar de alguma forma, sinta-se livre para me pagar um café, kkkk...Basta apontar a câmera do seu celular para um dos qrcodes abaixo.

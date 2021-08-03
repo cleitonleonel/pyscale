@@ -108,25 +108,25 @@ class WeighingThread(Thread):
                             current_weight = int(data.decode())
                         except:
                             pass
-                    time.sleep(0.2)
                     if current_weight > 0:
                         result_dict = {
                             "result": True,
-                            "value": current_weight / 1000
+                            "value": f'{current_weight / 1000:.3f}'
                         }
                     elif cont == 5:
                         result_dict = {
                             "result": False,
-                            "value": "0.00"
+                            "value": f'{0 / 1000:.3f}'
                         }
                 except:
                     print('NENHUM SERVER ENCONTRADO.')
                     break
+                time.sleep(0.1)
             cont += 1
 
 
 def progress_bar(location):
-    bar_layout = [[sg.Text('Salvando no estockue...', font=("verdana", 14), justification='center')],
+    bar_layout = [[sg.Text('Salvando no estoque...', font=("verdana", 14), justification='center')],
                   [sg.Column([[sg.Frame('', layout=[
                       [sg.ProgressBar(1000, orientation='h', size=(20, 20), key='progbar')]],
                                         element_justification='center')],
@@ -183,8 +183,8 @@ def welcome_layout():
                 ['Help', 'About...'], ]
 
     weight_frame = [
-        [sg.Text('0.00 KG', font=('digital-7', 78), background_color='lightgrey', pad=(0, 0), size_px=(600, 120),
-                 key='weight', text_color='black', justification='center')]
+        [sg.Text(f'{0 / 1000:.3f} KG', font=('digital-7', 78), background_color='lightgrey', pad=(0, 0),
+                 size_px=(600, 120), key='weight', text_color='black', justification='center')]
     ]
 
     container_frame = [
@@ -409,7 +409,7 @@ if __name__ == '__main__':
             # window['selected'].update(set_to_index=0)
             # values['selected'] = 'Selecione'
             last_weight = result_dict.get('value')
-            result_dict['value'] = '0.00'
+            result_dict['value'] = f'{0 / 1000:.3f}'
             # window['product_selected'].update('')
             window['weight'].update(f"{result_dict['value']} KG")
             if text_toggle_button == 'Totalizada':
@@ -425,7 +425,7 @@ if __name__ == '__main__':
             # window['print'].update(disabled=False)
             window['stock'].update(disabled=True)
             window['print'].update(disabled=True)
-            window['weight'].update(f"0.00 KG")
+            window['weight'].update(f'{0 / 1000:.3f} KG')
         time.sleep(0.1)
 
     window.close()
