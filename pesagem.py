@@ -5,6 +5,7 @@ import io
 import sys
 import time
 import socket
+import serial
 import subprocess
 import PySimpleGUIQt as sg
 from pytz import timezone
@@ -24,6 +25,9 @@ single_data = []
 
 QT_ENTER_KEY1 = 'special 16777220'
 QT_ENTER_KEY2 = 'special 16777221'
+
+STX = chr(2)
+CR = chr(13)
 
 settings = {"printer": "ARGOX_OS-2140"}  # {"printer": "POS80"}
 
@@ -60,6 +64,28 @@ def print_file(file_name):
         run_command(command)
     else:
         print('IMPRESSORA NÃO EXISTE!!!')
+
+
+def label_make(product):
+    argox_code_11 = '\n'.join([
+        f"{STX}{CR}",
+        f"{STX}L{CR}",
+        f"121200001900020{product['name']}{CR}",
+        f"111200001500020Data Emb:{product['creation_date']}{CR}",
+        f"111200001500220Validade:{product['validate']}{CR}",
+        f"111200001200020Peso Bruto:{CR}",
+        f"112200001200120  {product['weight']} Kg{CR}",
+        f"111200000900020Peso Embal:{CR}",
+        f"112200000900090    {product['weight_pack']}{CR}",
+        f"1E2103000600210{product['bar_code']}{CR}",
+        f"111200000150020Peso liquido:{CR}",
+        f"122200000150150  {product['weight']} Kg{CR}",
+        f"Q0001{CR}",
+        f"E{CR}",
+    ])
+
+    with open('labels/etiquetas.txt', 'w') as file:
+        file.write(argox_code_11 + '\n')
 
 
 def ngrok_session():
@@ -112,59 +138,61 @@ def get_current_date():
     return datetime.now().astimezone(timezone("America/Sao_Paulo")).strftime("%d/%m/%Y %H:%M:%S")
 
 
-class WeighingThread(Thread):
+def get_local_weight():
+    global result_dict
+    weight = 0
+    ser_ = serial.Serial()
+    ser_.port = '/dev/ttyUSB0'
+    ser_.baudrate = 4800
+    ser_.rtscts = None
+    ser_.xonxoff = None
+    ser_.timeout = 1
 
-    def __init__(self, *args, **kwargs):
-        super(WeighingThread, self).__init__(*args, **kwargs)
-        self.ip = None
-        self.port = 3333
-        self.is_alive = True
+    try:
+        os.system('sudo chmod 777 /dev/ttyUSB*')
+        ser_.open()
+    except serial.SerialException as e:
+        print(e)
+        result_dict = {
+            "result": False,
+            "value": f'{0 / 1000:.3f}',
+        }
+        return result_dict
+    ser_.write(chr(5).encode())
+    try:
+        data = ser_.readline()
+    except:
+        result_dict = {
+            "result": False,
+            "value": f'{0 / 1000:.3f}',
+        }
+        return result_dict
+    if len(data) == 7:
+        line = data[1:6].decode()
+        if line.isdigit():
+            weight = int(line)
+    if weight > 0:
+        result_dict = {
+            "result": True,
+            "value": f'{weight / 1000:.3f}',
+        }
+    else:
+        result_dict = {
+            "result": False,
+            "value": f'{0 / 1000:.3f}',
+        }
+    return result_dict
 
-    def stop(self):
-        self.is_alive = False
 
-    def run(self):
-        cont = 0
-        global result_dict
-        global current_weight
-        current_weight = 0
-        while self.is_alive:
-            result_dict['last_weight'] = current_weight
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                try:
-                    s.connect((self.ip, self.port))
-                    s.sendall(b'\x05')
-                    data = s.recv(1024)
-                    if len(data) == 7:
-                        line = data[1:6].decode()
-                        if line.isdigit():
-                            current_weight = int(line)
-                    else:
-                        try:
-                            current_weight = int(data.decode())
-                        except:
-                            pass
-                    if current_weight > 0:
-                        result_dict = {
-                            "result": True,
-                            "value": f'{current_weight / 1000:.3f}',
-                            "is_server": True
-                        }
-                    elif cont == 5:
-                        result_dict = {
-                            "result": False,
-                            "value": f'{0 / 1000:.3f}',
-                            "is_server": True
-                        }
-                except:
-                    result_dict = {
-                        "result": False,
-                        "value": f'{0 / 1000:.3f}',
-                        "is_server": False
-                    }
-                    break
-                time.sleep(0.1)
-            cont += 1
+def check_type_weighing():
+    while True:
+        time.sleep(3)
+        if result_dict.get("is_server"):
+            print(result_dict)
+            break
+        else:
+            print('\rNão é um servidor, vou executar a leitura local...', end='')
+            get_local_weight()
 
 
 def resource_path(relative_path):
@@ -187,10 +215,10 @@ def get_img_frames(filename):
     return sequence_frames, frame_duration
 
 
-def animation_image(window, file_name, text=''):
+def animation_image(window, file_name, seconds=2, text=''):
     sequence, duration = get_img_frames(file_name)
     idx = 0
-    while idx in range(2):
+    while idx in range(seconds):
         for frame in sequence:
             window.read(timeout=duration)
             window['loading'].update(data=frame)
@@ -206,10 +234,10 @@ def printer(location):
     status = check_printer_status(settings['printer'])
     if status:
         Thread(target=long_operation_thread, args=(print_file,
-                                                   os.path.join(".", "printers/file.txt"),), daemon=True).start()
-        animation_image(win_, 'src/images/printer_mine.gif', 'Imprimindo, aguarde...')
+                                                   os.path.join(".", "labels/etiquetas.txt"),), daemon=True).start()
+        animation_image(win_, 'src/images/printer_mine.gif', text='Imprimindo, aguarde...')
     else:
-        animation_image(win_, 'src/images/balloon.gif', 'Impressora não encontrada!!!')
+        animation_image(win_, 'src/images/balloon.gif', seconds=1, text='Impressora não encontrada!!!')
     for i in range(5):
         _event, _values = win_.read(1)
         if _event == sg.WIN_CLOSED:
@@ -395,6 +423,60 @@ def create_window(layout, title):
                      keep_on_top=False).Finalize()
 
 
+class WeighingThread(Thread):
+
+    def __init__(self, *args, **kwargs):
+        super(WeighingThread, self).__init__(*args, **kwargs)
+        self.ip = None
+        self.port = 3333
+        self.is_alive = True
+
+    def stop(self):
+        self.is_alive = False
+
+    def run(self):
+        global result_dict
+        global current_weight
+        cont = 0
+        current_weight = 0
+        while self.is_alive:
+            result_dict['last_weight'] = current_weight
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.connect((self.ip, self.port))
+                    s.sendall(b'\x05')
+                    data = s.recv(1024)
+                    if len(data) == 7:
+                        line = data[1:6].decode()
+                        if line.isdigit():
+                            current_weight = int(line)
+                    else:
+                        try:
+                            current_weight = int(data.decode())
+                        except:
+                            pass
+                    if current_weight > 0:
+                        result_dict = {
+                            "result": True,
+                            "value": f'{current_weight / 1000:.3f}',
+                            "is_server": True
+                        }
+                    elif cont == 5:
+                        result_dict = {
+                            "result": False,
+                            "value": f'{0 / 1000:.3f}',
+                            "is_server": False
+                        }
+                except:
+                    result_dict = {
+                        "result": False,
+                        "value": f'{0 / 1000:.3f}',
+                    }
+                    break
+                time.sleep(0.1)
+            cont += 1
+
+
 if __name__ == '__main__':
     screen_size = sg.Window('', alpha_channel=0).get_screen_dimensions()
     result_dict = {}
@@ -402,7 +484,7 @@ if __name__ == '__main__':
     status_result = True
     host = 'localhost'  # '2.tcp.ngrok.io'  # 'localhost'  # '192.168.1.154'
     port = 3333
-    ngrok_session()
+    # ngrok_session()
     down = True
     disable_popup = False
     text_toggle_button = ''
@@ -414,17 +496,15 @@ if __name__ == '__main__':
     dias = '180'
     max_weight = '21.600'
     min_weight = '21.000'
-    acceptable_range = f'{max_weight} a {min_weight}'
+    acceptable_range = f'{min_weight} a {max_weight}'
     weight_thread = WeighingThread()
     weight_thread.ip = host
     weight_thread.port = port
     weight_thread.start()
-    if result_dict.get("is_server"):
-        print(result_dict)
-    else:
-        print('Não é um servidor, vou executar a leitura local...')
     weight_task = Thread(target=long_operation_thread, args=(get_products,), daemon=True)
     weight_task.start()
+    weight_type_task = Thread(target=long_operation_thread, args=(check_type_weighing,), daemon=True)
+    weight_type_task.start()
     force_uppercase(True)
     current_layout = welcome_layout()
     window = create_window(current_layout, title='Pesagem')
@@ -513,6 +593,15 @@ if __name__ == '__main__':
                 and result_dict['value'] != last_weight:
             event = 'print'
         if event == 'print':
+            product_dict = {
+                "name": values['selected'],
+                "creation_date": '31-08-2021',
+                "validate": '31-08-2021',
+                "weight": result_dict['value'],
+                "weight_pack": '1g',
+                "bar_code": '2006080000006'
+            }
+            label_make(product_dict)
             window.disable()
             printer(location=(width // 2 + y - 150, height // 2 + x - 100))
             window.enable()
@@ -551,5 +640,4 @@ if __name__ == '__main__':
         if state == 'off':
             force_uppercase(True)
     window.close()
-
 quit()
