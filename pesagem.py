@@ -147,12 +147,12 @@ def get_local_weight():
     ser_.rtscts = None
     ser_.xonxoff = None
     ser_.timeout = 1
-
     try:
-        os.system('sudo chmod 777 /dev/ttyUSB*')
+        if os.path.isdir('/dev/ttyUSB*'):
+            command = 'sudo chmod 777 /dev/ttyUSB*'
+            run_command(command)
         ser_.open()
     except serial.SerialException as e:
-        print(e)
         result_dict = {
             "result": False,
             "value": f'{0 / 1000:.3f}',
